@@ -89,20 +89,3 @@ Every screen is designed to reduce clutter while making important information im
 ## 📱 Offline First
 
 ALARAL stores your alarms, reminders, sleep records, and water logs locally on your device. Your data remains available even without an internet connection, providing a fast, private, and reliable experience.
-
-## 🚀 Future Roadmap
-
-* Habit Tracker
-* Medicine Reminder
-* Mood Tracker
-* Pomodoro Timer
-* Journal
-* Wear OS Support
-* Home Screen Widgets
-* Smart Alarm Suggestions
-* Cloud Backup & Sync
-* AI-powered Routine Insights
-
-## ❤️ Vision
-
-ALARAL isn't just another alarm clock—it's a thoughtfully designed companion for your daily life. By bringing together alarms, reminders, sleep tracking, and hydration in one elegant application, ALARAL helps you build healthier routines without overwhelming you with unnecessary complexity.
