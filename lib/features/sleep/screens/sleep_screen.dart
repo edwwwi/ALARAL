@@ -104,7 +104,7 @@ class SleepScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Today\\'s Sleep', style: theme.textTheme.labelMedium?.copyWith(color: Colors.white54)),
+              Text("Today's Sleep", style: theme.textTheme.labelMedium?.copyWith(color: Colors.white54)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
@@ -268,7 +268,7 @@ class SleepScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '\${DateFormat('hh:mm a').format(record.bedTime)} → \${DateFormat('hh:mm a').format(record.wakeTime)}',
+                  "\${DateFormat('hh:mm a').format(record.bedTime)} → \${DateFormat('hh:mm a').format(record.wakeTime)}",
                   style: theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
                 ),
               ],
