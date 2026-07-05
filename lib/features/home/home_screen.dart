@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'providers/time_provider.dart';
+import 'providers/daily_summary_provider.dart';
+import '../alarm/providers/alarm_provider.dart';
+import '../../core/database/models/alarm_model.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -11,30 +14,27 @@ class HomeScreen extends ConsumerWidget {
     final currentTime = ref.watch(currentTimeProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildClockSection(context, currentTime, theme),
-              const SizedBox(height: 32),
-              const Divider(color: Color(0xFF333333), thickness: 1),
-              const SizedBox(height: 32),
-              _buildSectionTitle('Active Alarm', theme),
-              const SizedBox(height: 16),
-              _buildNextAlarmCard(theme),
-              const SizedBox(height: 32),
-              _buildSectionTitle('Dashboard', theme),
-              const SizedBox(height: 16),
-              _buildDashboardGrid(theme),
-            ],
-          ),
+    return SafeArea(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildClockSection(context, currentTime, theme),
+            const SizedBox(height: 32),
+            const Divider(color: Color(0xFF333333), thickness: 1),
+            const SizedBox(height: 32),
+            _buildSectionTitle('Active Alarm', theme),
+            const SizedBox(height: 16),
+            _buildNextAlarmCard(context, ref, theme),
+            const SizedBox(height: 32),
+            _buildSectionTitle('Dashboard', theme),
+            const SizedBox(height: 16),
+            _buildDashboardGrid(context, ref, theme),
+          ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -70,79 +70,112 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNextAlarmCard(ThemeData theme) {
+  Widget _buildNextAlarmCard(BuildContext context, WidgetRef ref, ThemeData theme) {
+    final nextAlarmState = ref.watch(nextActiveAlarmProvider);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: nextAlarmState.when(
+          data: (AlarmModel? alarm) {
+            if (alarm == null) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('No Active Alarms', style: theme.textTheme.headlineSmall),
+                ],
+              );
+            }
+            final isTomorrow = alarm.time.day != DateTime.now().day;
+            final label = isTomorrow ? 'Tomorrow' : 'Today';
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Tomorrow',
-                  style: theme.textTheme.labelSmall,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.labelSmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('hh:mm a').format(alarm.time),
+                      style: theme.textTheme.headlineLarge,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '06:30 AM',
-                  style: theme.textTheme.headlineLarge,
+                Switch(
+                  value: alarm.enabled,
+                  onChanged: (val) {
+                    ref.read(alarmNotifierProvider.notifier).toggleAlarm(alarm, val);
+                  },
+                  activeColor: Colors.black,
+                  activeTrackColor: Colors.white,
+                  inactiveThumbColor: Colors.grey,
+                  inactiveTrackColor: const Color(0xFF333333),
                 ),
               ],
-            ),
-            Switch(
-              value: true,
-              onChanged: (val) {},
-              activeColor: Colors.black,
-              activeTrackColor: Colors.white,
-              inactiveThumbColor: Colors.grey,
-              inactiveTrackColor: const Color(0xFF333333),
-            ),
-          ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator(color: Colors.white)),
+          error: (err, stack) => Text('Error loading alarms'),
         ),
       ),
     );
   }
 
-  Widget _buildDashboardGrid(ThemeData theme) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.1,
-      children: [
-        _buildMetricCard(
-          theme,
-          title: 'Sleep',
-          value: '7h 20m',
-          subtitle: 'Score: 85',
-          icon: Icons.bedtime_rounded,
-        ),
-        _buildMetricCard(
-          theme,
-          title: 'Water',
-          value: '1.2L',
-          subtitle: 'Goal: 2.0L',
-          icon: Icons.water_drop_rounded,
-        ),
-        _buildMetricCard(
-          theme,
-          title: 'Reminders',
-          value: '3 tasks',
-          subtitle: 'For today',
-          icon: Icons.task_alt_rounded,
-        ),
-        _buildMetricCard(
-          theme,
-          title: 'History',
-          value: 'View',
-          subtitle: 'Last 5 alarms',
-          icon: Icons.history_rounded,
-        ),
-      ],
+  Widget _buildDashboardGrid(BuildContext context, WidgetRef ref, ThemeData theme) {
+    final summaryState = ref.watch(dailySummaryProvider);
+
+    return summaryState.when(
+      data: (summary) {
+        final sleepVal = summary != null ? '\${summary.sleepMinutes ~/ 60}h \${summary.sleepMinutes % 60}m' : '0h 0m';
+        final sleepScore = summary?.overallScore ?? 0;
+        final waterVal = summary != null ? '\${(summary.waterMl / 1000).toStringAsFixed(1)}L' : '0.0L';
+        final reminders = summary?.remindersCompleted ?? 0;
+
+        return GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.1,
+          children: [
+            _buildMetricCard(
+              theme,
+              title: 'Sleep (LIVE)',
+              value: sleepVal,
+              subtitle: 'Score: \$sleepScore',
+              icon: Icons.bedtime_rounded,
+            ),
+            _buildMetricCard(
+              theme,
+              title: 'Water (LIVE)',
+              value: waterVal,
+              subtitle: 'Logged today',
+              icon: Icons.water_drop_rounded,
+            ),
+            _buildMetricCard(
+              theme,
+              title: 'Tasks',
+              value: '\$reminders completed',
+              subtitle: 'For today',
+              icon: Icons.task_alt_rounded,
+            ),
+            _buildMetricCard(
+              theme,
+              title: 'History',
+              value: 'View',
+              subtitle: 'Last 5 alarms',
+              icon: Icons.history_rounded,
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator(color: Colors.white)),
+      error: (err, stack) => Text('Error: \$err'),
     );
   }
 
@@ -156,33 +189,22 @@ class HomeScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Icon(icon, color: Colors.white, size: 28),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: theme.textTheme.labelSmall),
-                const SizedBox(height: 4),
-                Text(value, style: theme.textTheme.titleLarge),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: theme.textTheme.labelSmall?.copyWith(fontSize: 11)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  FittedBox(fit: BoxFit.scaleDown, child: Text(title, style: theme.textTheme.labelSmall)),
+                  const SizedBox(height: 4),
+                  FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: theme.textTheme.titleLarge)),
+                  const SizedBox(height: 2),
+                  FittedBox(fit: BoxFit.scaleDown, child: Text(subtitle, style: theme.textTheme.labelSmall?.copyWith(fontSize: 11))),
+                ],
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      currentIndex: 0,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-        BottomNavigationBarItem(icon: Icon(Icons.alarm_rounded), label: 'Alarm'),
-        BottomNavigationBarItem(icon: Icon(Icons.calendar_month_rounded), label: 'Calendar'),
-        BottomNavigationBarItem(icon: Icon(Icons.bedtime_rounded), label: 'Sleep'),
-        BottomNavigationBarItem(icon: Icon(Icons.water_drop_rounded), label: 'Water'),
-      ],
     );
   }
 }

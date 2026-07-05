@@ -3,14 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/notifications/local_notifications.dart';
-import 'data/local_db.dart';
-import 'features/home/home_screen.dart';
+import 'core/database/database_manager.dart';
+import 'core/database/database_seeder.dart';
+import 'features/main/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Local Database (Isar)
-  await LocalDb.initialize();
+  // Initialize Local Database (Isar) using the new architecture
+  final isar = await DatabaseManager.getInstance();
+  
+  // Seed database with mock data on first run
+  await DatabaseSeeder.seed(isar);
   
   // Initialize Local Notifications
   await LocalNotifications.initialize();
@@ -31,7 +35,7 @@ class AlaralApp extends StatelessWidget {
       title: 'Alaral',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const HomeScreen(),
+      home: const MainScreen(),
     );
   }
 }
